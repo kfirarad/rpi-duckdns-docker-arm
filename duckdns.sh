@@ -1,5 +1,35 @@
 #!/bin/bash 
 
+LASTIP='';
+
+getIP (){
+	IP=$(curl -qO- "http://myexternalip.com/raw");
+	if [ $IP -ne $LASTIP ] ; 
+		then 
+		$LASTIP=$IP;
+		echo "New IP Dectated: ${IP}";
+	fi
+	return IP;
+}
+
+buildUrl($TOKEN,$IP,$DOMAINS,$VERBOSE) {
+	DDNSURL="https://www.duckdns.org/update?"
+	$DDNSURL = ${DDNSURL}token=${TOKEN}&domains=${DOMAINS}&ip=${IP}&verbose={$VERBOSE}
+	return $URL;
+}
+updateDNS($TOKEN, $IP, $DOMAINS,$VERBOSE){
+
+	if [ -n "$IP" ]
+	then
+		IPANDURL="${DDNSURL}ip=$IP&"
+	fi	
+	USERAGENT="--user-agent=\"shell script/1.0 mail@mail.com\""
+	
+	$URL = buildUrl($TOKEN, $IP, $DOMAINS,$VERBOSE);
+
+	return $(curl $URL)
+}
+
 if [ -z "$TOKEN" ]
 then
 	echo "No TOKEN was set."
@@ -16,7 +46,7 @@ fi
 
 if [ -n "$DETECTIP" ]
 then
-	IP=$(wget -qO- "http://myexternalip.com/raw")
+	IP=getIP();
 fi
 
 
@@ -31,18 +61,6 @@ then
 	echo "Interval is not an integer."
 	exit 35
 fi
-
-USERAGENT="--user-agent=\"shell script/1.0 mail@mail.com\""
-
-DDNSURL="https://www.duckdns.org/update?"
-
-if [ -n "$DOMAINS" ]
-then
-	DDNSURL="${DDNSURL}domains=${DOMAINS}&"
-fi
-
-DDNSURL="${DDNSURL}token=$TOKEN&"
-
 echo "Started $(date)"
 echo "Update interval ${INTERVAL}m"
 
@@ -51,21 +69,14 @@ do
 	
 	if [ -n "$DETECTIP" ]
 	then
-		IP=$(wget -qO- "http://myexternalip.com/raw")
+		IP=getIP();
 	fi
 	if [ -n "$DETECTIP" ] && [ -z $IP ]
 	then
 		RESULT="Could not detect external IP."
 	fi
-	
-	if [ -n "$IP" ]
-	then
-		IPANDURL="${DDNSURL}ip=$IP&"
-	fi
-	
-	IPANDURL=${IPANDURL%?}
 
-	RESULT=$(wget --no-check-certificate -qO- $USERAGENT $IPANDURL)
+	RESULT=updateDNS($TOKEN, $IP, $DOMAINS);
 
 	 
 	echo "$(date): $RESULT"
